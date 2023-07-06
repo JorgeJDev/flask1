@@ -1,7 +1,9 @@
-from flask import Flask
-from psycopg2 import connect
+from flask import Flask, request, jsonify
+from psycopg2 import connect, extras 
+from cryptography.fernet import Fernet
 
 app = Flask(__name__)
+key = Fernet.generate_key()
 
 host = 'localhost'
 port = 5432
@@ -23,7 +25,29 @@ def get_user():
 
 @app.post('/api/v1/users')
 def create_users():
-    return 'creating users'
+    new_user = request.get_json()
+    username = new_user['username']
+    email = new_user['email']
+    password = Fernet(key).encrypt(bytes(new_user['password'], 'utf-8'))
+    
+    #Conexión a BBDD
+    conn = get_connection()
+    #Cursor que se utiliza para ejecutar comandos de SQL
+    cur = conn.cursor(cursor_factory=extras.RealDictCursor)
+    
+    #Método para ejecutar los comandos de la BBDD
+    cur.execute('INSERT INTO users (username, email, password) VALUES (%s, %s, %s) RETURNING *',
+                (username, email, password))
+    
+    new_created_user = cur.fetchone()
+    #Confirmar los cambios
+    conn.commit()
+    
+    #Cerramos la conexión con BBDD y el cursor
+    cur.close()
+    conn.close()
+    
+    return jsonify(new_created_user)
 
 @app.put('/api/v1/users/1')
 def update_users():
