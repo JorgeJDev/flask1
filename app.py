@@ -17,14 +17,38 @@ def get_connection() :
 
 @app.get('/api/v1/users')
 def get_users():
-    return 'getting users'
+    
+    conn = get_connection()
+    cur = conn.cursor(cursor_factory=extras.RealDictCursor)
+    
+    cur.execute("SELECT * FROM users")
+    users = cur.fetchall()
+    
+    cur.close()
+    conn.close()
+    
+    return jsonify(users)
 
-@app.get('/api/v1/users/1')
-def get_user():
-    return 'getting user'
+@app.get('/api/v1/users/<id>')
+def get_user(id):
+    
+    conn = get_connection()
+    cur = conn.cursor(cursor_factory=extras.RealDictCursor)
+    
+    cur.execute("SELECT * FROM users WHERE id = %s", (id,))
+    user = cur.fetchone()
+    
+    cur.close()
+    conn.close()
+
+    if user is None:
+        return jsonify({'message': 'User not found'}), 404
+
+    return jsonify(user)
 
 @app.post('/api/v1/users')
 def create_users():
+    
     new_user = request.get_json()
     username = new_user['username']
     email = new_user['email']
